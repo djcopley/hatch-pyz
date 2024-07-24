@@ -8,18 +8,12 @@ import zipapp
 from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
-from typing import Any
-from typing import Callable
-from typing import Iterable
-from typing import Iterator
+from typing import Any, Callable, Iterable, Iterator
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED, ZIP_STORED
 
 from hatchling.builders.config import BuilderConfig
-from hatchling.builders.plugin.interface import BuilderInterface
-from hatchling.builders.plugin.interface import IncludedFile
-from hatchling.builders.utils import get_reproducible_timestamp
-from hatchling.builders.utils import normalize_file_permissions
-from hatchling.builders.utils import set_zip_info_mode
+from hatchling.builders.plugin.interface import BuilderInterface, IncludedFile
+from hatchling.builders.utils import get_reproducible_timestamp, normalize_file_permissions, set_zip_info_mode
 
 from .config import PyzConfig
 from .utils import atomic_write
