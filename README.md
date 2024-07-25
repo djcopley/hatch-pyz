@@ -66,7 +66,7 @@ You can run the generated zipapp directly:
 python dist/my_python_app-1.0.0.pyz
 ```
 
-### Options
+## Options
 
 | Option        | Type   | Requirement | Default                | Description                                                                                      |
 |---------------|--------|-------------|------------------------|--------------------------------------------------------------------------------------------------|
