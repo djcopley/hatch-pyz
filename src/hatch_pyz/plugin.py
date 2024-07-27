@@ -1,32 +1,43 @@
 from __future__ import annotations
 
-import io
 import os
 import shutil
+import sys
+import tempfile
 import time
-import zipapp
-from contextlib import contextmanager
+import zipfile
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Iterable, Iterator
-from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED, ZIP_STORED
+from typing import Any, Callable, Iterable
+from zipfile import ZipFile, ZipInfo
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.plugin.interface import BuilderInterface, IncludedFile
-from hatchling.builders.utils import get_reproducible_timestamp, normalize_file_permissions, set_zip_info_mode
+from hatchling.builders.utils import get_reproducible_timestamp, normalize_file_permissions, \
+    normalize_artifact_permissions, set_zip_info_mode, replace_file
 
 from .config import PyzConfig
-from .utils import atomic_write
 
 
 class ZipappArchive:
-    def __init__(self, zipfd: ZipFile, *, reproducible: bool = True):
-        self.zipfd = zipfd
+    if sys.platform.startswith('win'):
+        shebang_encoding = 'utf-8'
+    else:
+        shebang_encoding = sys.getfilesystemencoding()
+
+    def __init__(self, *, reproducible: bool, compressed: bool, interpreter: str):
         self.reproducible = reproducible
 
+        raw_fd, self.path = tempfile.mkstemp(suffix='.pyz')
+        self.fd = os.fdopen(raw_fd, 'w+b')
+
+        shebang = b'#!' + interpreter.encode(self.shebang_encoding) + b'\n'
+        self.fd.write(shebang)
+
+        compression = zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED
+        self.zf = ZipFile(self.fd, "w", compression=compression)
+
     def add_file(self, included_file: IncludedFile) -> None:
-        # Logic mostly copied from hatchling.builders.wheel.WheelArchive.add_file
-        # https://github.com/pypa/hatch/blob/7dac9856d2545393f7dd96d31fc8620dde0dc12d/backend/src/hatchling/builders/wheel.py#L84-L112
         zinfo = ZipInfo.from_file(included_file.path, included_file.distribution_path)
         if zinfo.is_dir():
             raise ValueError(
@@ -39,7 +50,7 @@ class ZipappArchive:
             st_mode = (zinfo.external_attr >> 16) & 0xFFFF
             set_zip_info_mode(zinfo, normalize_file_permissions(st_mode) & 0xFFFF)
 
-        with open(included_file.path, "rb") as src, self.zipfd.open(zinfo, "w") as dest:
+        with open(included_file.path, "rb") as src, self.zf.open(zinfo, "w") as dest:
             shutil.copyfileobj(src, dest, 8 * 1024)
 
     def write_file(self, path: str, data: bytes | str) -> None:
@@ -48,19 +59,29 @@ class ZipappArchive:
             date_time = self._reproducible_date_time
         else:
             date_time = time.localtime(time.time())[:6]
-        self.zipfd.writestr(ZipInfo(os.fspath(arcname), date_time=date_time), data)
+        self.zf.writestr(ZipInfo(os.fspath(arcname), date_time=date_time), data)
+
+    def write_dunder_main(self, module: str, function: str) -> None:
+        _dunder_main = "\n".join((
+            "# -*- coding: utf-8 -*-",
+            f"import {module}",
+            f"{module}.{function}()",
+        ))
+        self.write_file("__main__.py", _dunder_main)
 
     @cached_property
     def _reproducible_date_time(self):
         return time.gmtime(get_reproducible_timestamp())[0:6]
 
-    @classmethod
-    @contextmanager
-    def open(cls, dst: str | os.PathLike[str], *, reproducible: bool, compressed: bool) -> Iterator[ZipArchive]:
-        with atomic_write(dst) as fp:
-            compression = ZIP_DEFLATED if compressed else ZIP_STORED
-            with ZipFile(fp, "w", compression=compression) as zipfd:
-                yield cls(zipfd, reproducible=reproducible)
+    def close(self):
+        self.zf.close()
+        self.fd.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 class PythonZipappBuilder(BuilderInterface):
@@ -81,32 +102,20 @@ class PythonZipappBuilder(BuilderInterface):
                 os.remove(os.path.join(directory, filename))
 
     def build_standard(self, directory: str, **build_data: Any) -> str:
-        self.app.display_debug(f"Directory: {directory}")
-        self.app.display_debug(f"Build Data: {build_data}")
-        self.app.display_debug(f"Target Config: {self.target_config}")
-        self.app.display_debug(f"Config: {self.config}")
-
         project_name = self.normalize_file_name_component(self.metadata.core.raw_name)
         target = Path(directory, f"{project_name}-{self.metadata.version}.pyz")
 
         module, function = self.config.main.split(":")
-        dunder_main = ("# -*- coding: utf-8 -*-\n"
-                       f"import {module}\n"
-                       f"{module}.{function}()")
 
-        with ZipappArchive.open(
-                target, reproducible=self.config.reproducible, compressed=self.config.compressed
-        ) as archive:
-            archive.write_file("__main__.py", dunder_main)
+        with ZipappArchive(reproducible=self.config.reproducible, compressed=self.config.compressed,
+                           interpreter=self.config.interpreter) as pyzapp:
+            pyzapp.write_dunder_main(module, function)
             for included_file in self.recurse_included_files():
                 self.app.display_debug(f"Included File: {included_file.path}, {included_file.relative_path}, "
                                        f"{included_file.distribution_path}")
-                archive.add_file(included_file)
+                pyzapp.add_file(included_file)
 
-        temp = io.BytesIO()
-        zipapp.create_archive(target, temp, self.config.interpreter)
-
-        with open(target, "wb") as dest:
-            dest.write(temp.getvalue())
+        replace_file(pyzapp.path, str(target))
+        normalize_artifact_permissions(str(target))
 
         return os.fspath(target)
