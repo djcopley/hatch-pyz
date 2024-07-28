@@ -43,9 +43,7 @@ class ZipappArchive:
     def add_file(self, included_file: IncludedFile) -> None:
         zinfo = ZipInfo.from_file(included_file.path, included_file.distribution_path)
         if zinfo.is_dir():
-            raise ValueError(
-                "ZipArchive.add_file does not support adding directories"
-            )
+            raise ValueError("ZipArchive.add_file does not support adding directories")
 
         if self.reproducible:
             zinfo.date_time = self._reproducible_date_time
@@ -133,8 +131,6 @@ class PythonZipappBuilder(BuilderInterface):
             if self.config.bundle_depenencies:
                 pyzapp.add_dependencies(self.metadata.core.dependencies)
             for included_file in self.recurse_included_files():
-                self.app.display_debug(f"Included File: {included_file.path}, {included_file.relative_path}, "
-                                       f"{included_file.distribution_path}")
                 pyzapp.add_file(included_file)
 
         replace_file(pyzapp.path, str(target))
