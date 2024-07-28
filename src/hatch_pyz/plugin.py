@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -13,8 +14,10 @@ from zipfile import ZipFile, ZipInfo
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.plugin.interface import BuilderInterface, IncludedFile
-from hatchling.builders.utils import get_reproducible_timestamp, normalize_file_permissions, \
-    normalize_artifact_permissions, set_zip_info_mode, replace_file
+from hatchling.builders.utils import (
+    get_reproducible_timestamp, normalize_file_permissions, normalize_artifact_permissions, set_zip_info_mode,
+    replace_file
+)
 
 from .config import PyzConfig
 
@@ -69,6 +72,23 @@ class ZipappArchive:
         ))
         self.write_file("__main__.py", _dunder_main)
 
+    def add_dependencies(self, dependencies: Iterable[str]) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pip_command = [
+                sys.executable, "-m", "pip", "install",
+                "--no-input",
+                "--disable-pip-version-check",
+                "--no-color",
+                "--target", tmpdir
+            ]
+            subprocess.check_call(pip_command + list(dependencies))
+
+            for file in Path(tmpdir).rglob("*"):
+                if not file.is_file():
+                    continue
+                included_file = IncludedFile(file, "", str(file.relative_to(tmpdir)))
+                self.add_file(included_file)
+
     @cached_property
     def _reproducible_date_time(self):
         return time.gmtime(get_reproducible_timestamp())[0:6]
@@ -110,6 +130,8 @@ class PythonZipappBuilder(BuilderInterface):
         with ZipappArchive(reproducible=self.config.reproducible, compressed=self.config.compressed,
                            interpreter=self.config.interpreter) as pyzapp:
             pyzapp.write_dunder_main(module, function)
+            if self.config.bundle_depenencies:
+                pyzapp.add_dependencies(self.metadata.core.dependencies)
             for included_file in self.recurse_included_files():
                 self.app.display_debug(f"Included File: {included_file.path}, {included_file.relative_path}, "
                                        f"{included_file.distribution_path}")
