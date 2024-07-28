@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "hatch-pyz"
-version = "0.0.1"
+dynamic = ["version"]
 description = "Hatch plugin for building python zip applications"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -26,6 +26,9 @@ dev = ["pytest"]
 
 [project.entry-points.hatch]
 pyz = "hatch_pyz.hooks"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build]
 sources = ["src"]
