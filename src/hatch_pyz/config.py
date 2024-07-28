@@ -60,8 +60,8 @@ class PyzConfig(BuilderConfig):
     
     @cached_property
     def bundle_depenencies(self) -> bool:
-        if 'bundle-depenencies' in self.target_config:
-            bundle_depenencies = self.target_config['bundle-depenencies']
+        if 'bundle-dependencies' in self.target_config:
+            bundle_depenencies = self.target_config['bundle-dependencies']
             if not isinstance(bundle_depenencies, bool):
                 message = f'Field `tool.hatch.build.bundle-depenencies` must be a boolean'
                 raise TypeError(message)
