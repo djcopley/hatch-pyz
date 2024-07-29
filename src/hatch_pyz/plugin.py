@@ -81,11 +81,12 @@ class ZipappArchive:
             ]
             subprocess.check_call(pip_command + list(dependencies))
 
-            for file in Path(tmpdir).rglob("*"):
-                if not file.is_file():
-                    continue
-                included_file = IncludedFile(file, "", str(file.relative_to(tmpdir)))
-                self.add_file(included_file)
+            for root, dirs, files in Path(tmpdir).walk():
+                dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+                files.sort()
+                for file in files:
+                    included_file = IncludedFile(str(root / file), "", str(root.relative_to(tmpdir) / file))
+                    self.add_file(included_file)
 
     @cached_property
     def _reproducible_date_time(self):
