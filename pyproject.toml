@@ -32,12 +32,10 @@ Issues = "https://github.com/djcopley/hatch-pyz/issues"
 [tool.hatch.version]
 source = "vcs"
 
-[tool.hatch.build]
-sources = ["src"]
-
 [tool.hatch.envs.hatch-test]
 dependencies = [
     "pytest",
+    "tomli_w",
 ]
 
 [tool.hatch.envs.types]
@@ -56,6 +54,18 @@ check = [
 pythonpath = "src"
 addopts = [
     "--import-mode=importlib",
+]
+
+[tool.coverage.run]
+source = ["src/"]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "no cov",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
 ]
 
 [tool.ruff.lint.extend-per-file-ignores]
