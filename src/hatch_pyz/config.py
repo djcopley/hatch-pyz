@@ -7,8 +7,6 @@ from hatchling.builders.config import BuilderConfig
 
 
 class PyzConfig(BuilderConfig):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     @cached_property
     def interpreter(self) -> str:
@@ -57,7 +55,7 @@ class PyzConfig(BuilderConfig):
                 raise TypeError(message)
 
         return compressed
-    
+
     @cached_property
     def bundle_depenencies(self) -> bool:
         if 'bundle-dependencies' in self.target_config:
