@@ -22,7 +22,11 @@ classifiers = [
 dependencies = ["hatchling"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = [
+  "pytest",
+  "mypy",
+  "ruff"
+]
 
 [project.entry-points.hatch]
 pyz = "hatch_pyz.hooks"
