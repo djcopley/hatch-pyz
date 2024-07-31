@@ -72,7 +72,7 @@ python dist/my_python_app-1.0.0.pyz
 |-----------------------|--------|-------------|------------------------|--------------------------------------------------------------------------------------------------|
 | `main`                | `str`  | Required    |                        | Zipapp entry-point in the format "pkg.mod:func"                                                  |
 | `interpreter`         | `str`  | Optional    | `/usr/bin/env python3` | Sets the python interpreter shebang for the archive                                              |
-| `compressed`          | `bool` | Optional    | `false`                | If true, files are compressed with the deflate method; otherwise, files are stored uncompressed. |
+| `compressed`          | `bool` | Optional    | `true`                 | If true, files are compressed with the deflate method; otherwise, files are stored uncompressed. |
 | `bundle-dependencies` | `bool` | Optional    | `true`                 | if true, pure-python dependencies are bundled in the zipapp archive                              |
 
 ## Reproducible Builds
