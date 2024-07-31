@@ -24,6 +24,7 @@ dependencies = ["hatchling"]
 [project.optional-dependencies]
 dev = [
   "pytest",
+  "tox",
   "mypy",
   "ruff"
 ]
@@ -36,6 +37,12 @@ source = "vcs"
 
 [tool.hatch.build]
 sources = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+addopts = [
+    "--import-mode=importlib",
+]
 
 [project.urls]
 Homepage = "https://github.com/djcopley/hatch-pyz"
