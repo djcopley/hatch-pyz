@@ -52,7 +52,8 @@ class ZipappArchive:
             set_zip_info_mode(zinfo, normalize_file_permissions(st_mode) & 0xFFFF)
 
         with open(included_file.path, "rb") as src, self.zf.open(zinfo, "w") as dest:
-            shutil.copyfileobj(src, dest, 8 * 1024)
+            # https://github.com/python/mypy/issues/15031
+            shutil.copyfileobj(src, dest, 8 * 1024)  # type: ignore[misc]
 
     def write_file(self, path: str, data: bytes | str) -> None:
         arcname = path
