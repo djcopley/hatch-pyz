@@ -54,10 +54,6 @@ class PyzConfig(BuilderConfig):
                 return FileSelectionOptions([], exclude, [namespace], [])
             project_names.add(project_name)
 
-        if self.bypass_selection or self.build_artifact_spec is not None or self.get_force_include():
-            self.set_exclude_all()
-            return FileSelectionOptions([], exclude, [], [])
-
         project_names_text = ' or '.join(sorted(project_names))
         message = (
             f'Unable to determine which files to ship inside the wheel using the following heuristics: '
@@ -138,12 +134,12 @@ class PyzConfig(BuilderConfig):
         if 'bundle-dependencies' in self.target_config:
             bundle_depenencies = self.target_config['bundle-dependencies']
             if not isinstance(bundle_depenencies, bool):
-                message = f'Field `tool.hatch.build.bundle-depenencies` must be a boolean'
+                message = 'Field `tool.hatch.build.bundle-depenencies` must be a boolean'
                 raise TypeError(message)
         else:
             bundle_depenencies = self.build_config.get('bundle-depenencies', True)
             if not isinstance(bundle_depenencies, bool):
-                message = f'Field `tool.hatch.build.bundle-depenencies` must be a boolean'
+                message = 'Field `tool.hatch.build.bundle-depenencies` must be a boolean'
                 raise TypeError(message)
 
         return bundle_depenencies
