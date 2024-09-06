@@ -11,25 +11,23 @@ requires-python = ">=3.8"
 keywords = ["hatch", "pyz", "plugin"]
 authors = [{ name = "Daniel Copley", email = "djcopley@proton.me" }]
 classifiers = [
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Framework :: Hatch",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Hatch",
 ]
 dependencies = ["hatchling"]
 
-[project.optional-dependencies]
-dev = [
-  "pytest",
-  "mypy",
-  "ruff"
-]
-
 [project.entry-points.hatch]
 pyz = "hatch_pyz.hooks"
+
+[project.urls]
+Homepage = "https://github.com/djcopley/hatch-pyz"
+Repository = "https://github.com/djcopley/hatch-pyz.git"
+Issues = "https://github.com/djcopley/hatch-pyz/issues"
 
 [tool.hatch.version]
 source = "vcs"
@@ -37,7 +35,28 @@ source = "vcs"
 [tool.hatch.build]
 sources = ["src"]
 
-[project.urls]
-Homepage = "https://github.com/djcopley/hatch-pyz"
-Repository = "https://github.com/djcopley/hatch-pyz.git"
-Issues = "https://github.com/djcopley/hatch-pyz/issues"
+[tool.hatch.envs.hatch-test]
+dependencies = [
+    "pytest",
+]
+
+[tool.hatch.envs.types]
+template = "hatch-test"
+extra-dependencies = [
+    "mypy~=1.0",
+]
+
+[tool.hatch.envs.types.scripts]
+check = [
+    "mypy {args:src/hatch_pyz}",
+    "mypy --explicit-package-bases tests"
+]
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+addopts = [
+    "--import-mode=importlib",
+]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/*" = ["INP001", "ARG"]
