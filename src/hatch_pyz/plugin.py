@@ -24,6 +24,7 @@ from hatchling.builders.utils import (
 from hatch_pyz.config import PyzConfig
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from hatchling.builders.config import BuilderConfig
 
 
@@ -76,7 +77,9 @@ class ZipappArchive:
         )
         self.write_file("__main__.py", _dunder_main)
 
-    def add_dependencies(self, dependencies: Iterable[str]) -> None:
+    def add_dependencies(self, dependencies: Sequence[str]) -> None:
+        if not dependencies:
+            return
         with tempfile.TemporaryDirectory() as tmpdir:
             pip_command = [
                 sys.executable,
@@ -137,9 +140,9 @@ class PythonZipappBuilder(BuilderInterface):
         module, function = self.config.main.split(":")
 
         with ZipappArchive(
-            reproducible=self.config.reproducible,
-            compressed=self.config.compressed,
-            interpreter=self.config.interpreter,
+                reproducible=self.config.reproducible,
+                compressed=self.config.compressed,
+                interpreter=self.config.interpreter,
         ) as pyzapp:
             pyzapp.write_dunder_main(module, function)
             if self.config.bundle_depenencies:
