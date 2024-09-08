@@ -1,6 +1,6 @@
 from hatchling.plugin import hookimpl
 
-from hatch_pyz.plugin import PythonZipappBuilder
+from hatch_pyz.builder import PythonZipappBuilder
 
 
 @hookimpl

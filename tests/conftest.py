@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pytest
 import tomli_w
 
-from hatch_pyz.plugin import PythonZipappBuilder
+from hatch_pyz.builder import PythonZipappBuilder
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -8,10 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
+import hatch_pyz.builder
 from tests.conftest import make_files
 
 if TYPE_CHECKING:
-    from hatch_pyz.plugin import PythonZipappBuilder
+    from hatch_pyz.builder import PythonZipappBuilder
 
 
 def md5_file_digest(path: str | Path) -> bytes:
@@ -92,8 +93,8 @@ def test_build_standard_bundled_dependencies(pyz_builder_factory):
     build_dir = Path(builder.config.directory)
     build_dir.mkdir()
 
-    with patch("hatch_pyz.plugin.pip_install") as mock_pip_install:
-        mock_pip_install.side_effect = lambda dependencies, target_dir: make_files(Path(target_dir), dependencies)
+    with patch.object(hatch_pyz.builder, "pip_install") as mock_pip_install:
+        mock_pip_install.side_effect = lambda deps, target_dir: make_files(Path(target_dir), deps)
         artifact_path = builder.build_standard(str(build_dir))
 
     with zipfile.ZipFile(artifact_path, "r") as zf:
