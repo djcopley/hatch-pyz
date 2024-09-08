@@ -3,13 +3,15 @@ from __future__ import annotations
 import os
 import random
 import time
-from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
 import tomli_w
 
 from hatch_pyz.builder import PythonZipappBuilder
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def random_file_time_tuple() -> tuple[int, int]:
