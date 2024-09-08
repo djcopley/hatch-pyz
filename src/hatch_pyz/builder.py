@@ -46,8 +46,8 @@ def pip_install(dependencies: Sequence[str], target_directory: str) -> None:
         "--no-input",
         "--disable-pip-version-check",
         "--no-color",
-        "--target",
-        target_directory,
+        "--no-compile",
+        "--target", target_directory,
     ]
     subprocess.check_call(pip_command + list(dependencies))
 
@@ -156,7 +156,7 @@ class PythonZipappBuilder(BuilderInterface):
 
             for r, dirs, files in os.walk(target_directory):
                 root = Path(r)
-                dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+                dirs[:] = sorted(dirs)
                 files.sort()
                 for file in files:
                     self.config.force_include[str(root / file)] = str(root.relative_to(target_directory) / file)
