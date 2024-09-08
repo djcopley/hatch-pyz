@@ -34,7 +34,7 @@ def pyz_builder_factory(tmp_path) -> Callable:
         optional_dependencies: dict | None = None,
         force_include: dict | None = None,
         files: list[str] | None = None,
-        **build_conf: dict
+        **build_conf: dict,
     ) -> PythonZipappBuilder:
         if not config:
             config = default_config

@@ -15,10 +15,11 @@ from zipfile import ZipFile, ZipInfo
 from hatchling.builders.plugin.interface import BuilderInterface, IncludedFile
 from hatchling.builders.utils import (
     get_reproducible_timestamp,
+    normalize_archive_path,
     normalize_artifact_permissions,
     normalize_file_permissions,
     replace_file,
-    set_zip_info_mode, normalize_archive_path,
+    set_zip_info_mode,
 )
 
 from hatch_pyz.config import PyzConfig
@@ -88,7 +89,7 @@ class ZipappArchive:
 
         zip_info.compress_type = self.compression
 
-        with open(included_file.path, 'rb') as in_file, self.zf.open(zip_info, 'w') as out_file:
+        with open(included_file.path, "rb") as in_file, self.zf.open(zip_info, "w") as out_file:
             while True:
                 chunk = in_file.read(16384)
                 if not chunk:
@@ -168,9 +169,9 @@ class PythonZipappBuilder(BuilderInterface):
         )
 
         with ZipappArchive(
-                reproducible=self.config.reproducible,
-                compressed=self.config.compressed,
-                interpreter=self.config.interpreter,
+            reproducible=self.config.reproducible,
+            compressed=self.config.compressed,
+            interpreter=self.config.interpreter,
         ) as pyzapp, bundled_dependencies:
             pyzapp.write_dunder_main(module, function)
             for included_file in self.recurse_included_files():
