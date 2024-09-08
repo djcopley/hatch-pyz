@@ -60,6 +60,10 @@ check = [
 
 [tool.pytest.ini_options]
 pythonpath = "src"
+markers = [
+    "slow: marks tests as slow (select with '-m \"slow\"')",
+    "serial"
+]
 addopts = [
     "--import-mode=importlib",
 ]

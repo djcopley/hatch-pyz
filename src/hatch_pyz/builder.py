@@ -47,7 +47,8 @@ def pip_install(dependencies: Sequence[str], target_directory: str) -> None:
         "--disable-pip-version-check",
         "--no-color",
         "--no-compile",
-        "--target", target_directory,
+        "--target",
+        target_directory,
     ]
     subprocess.check_call(pip_command + list(dependencies))
 

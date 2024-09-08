@@ -77,7 +77,8 @@ def test_build_standard_reproducible(reproducible, pyz_builder_factory):
 
 
 @pytest.mark.parametrize(
-    ("compressed", "compression_type"), [(False, zipfile.ZIP_STORED), (True, zipfile.ZIP_DEFLATED)]
+    ("compressed", "compression_type"),
+    [(False, zipfile.ZIP_STORED), (True, zipfile.ZIP_DEFLATED)],
 )
 def test_build_standard_compressed(compressed, compression_type, pyz_builder_factory):
     builder: PythonZipappBuilder = pyz_builder_factory(

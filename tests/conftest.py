@@ -27,7 +27,8 @@ def make_files(root: Path, files: list[str]) -> None:
         path = root / file
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch()
-        os.utime(path, random_file_time_tuple())  # randomize access and modification timestamps to test reproducibility
+        # randomize access and modification timestamps to test reproducibility
+        os.utime(path, random_file_time_tuple())
 
 
 @pytest.fixture
