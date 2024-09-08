@@ -70,7 +70,9 @@ def test_build_standard_reproducible(pyz_builder_factory):
     assert hash1 == hash2
 
 
-@pytest.mark.parametrize("compressed,compression_type", [(False, zipfile.ZIP_STORED), (True, zipfile.ZIP_DEFLATED)])
+@pytest.mark.parametrize(
+    ("compressed", "compression_type"), [(False, zipfile.ZIP_STORED), (True, zipfile.ZIP_DEFLATED)]
+)
 def test_build_standard_compressed(compressed, compression_type, pyz_builder_factory):
     builder: PythonZipappBuilder = pyz_builder_factory(
         compressed=compressed,
@@ -79,7 +81,7 @@ def test_build_standard_compressed(compressed, compression_type, pyz_builder_fac
     build_dir.mkdir()
 
     artifact_path = builder.build_standard(str(build_dir))
-    with zipfile.ZipFile(artifact_path, 'r') as zf:
+    with zipfile.ZipFile(artifact_path, "r") as zf:
         for info in zf.infolist():
             assert info.compress_type == compression_type
 
