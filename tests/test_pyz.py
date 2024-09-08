@@ -57,9 +57,7 @@ def test_build_standard(pyz_builder_factory):
         assert zf.read("__main__.py") == b"# -*- coding: utf-8 -*-\nimport my_app.app\nmy_app.app.main()"
 
 
-@pytest.mark.parametrize(
-    "reproducible", [False, True]
-)
+@pytest.mark.parametrize("reproducible", [False, True])
 def test_build_standard_reproducible(reproducible, pyz_builder_factory):
     builder1: PythonZipappBuilder = pyz_builder_factory(reproducible=reproducible)
     build_dir1 = Path(builder1.config.directory)
