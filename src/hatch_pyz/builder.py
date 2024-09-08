@@ -9,7 +9,7 @@ import time
 import zipfile
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Tuple
 from zipfile import ZipFile, ZipInfo
 
 from hatchling.builders.plugin.interface import BuilderInterface, IncludedFile
@@ -24,12 +24,17 @@ from hatchling.builders.utils import (
 
 from hatch_pyz.config import PyzConfig
 
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
+
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from hatchling.builders.config import BuilderConfig
 
-TIME_TUPLE: TypeAlias = tuple[int, int, int, int, int, int]
+TIME_TUPLE: TypeAlias = Tuple[int, int, int, int, int, int]
 
 
 def pip_install(dependencies: Sequence[str], target_directory: str) -> None:
@@ -149,7 +154,8 @@ class PythonZipappBuilder(BuilderInterface):
         with tempfile.TemporaryDirectory() as target_directory:
             pip_install(dependencies, target_directory)
 
-            for root, dirs, files in Path(target_directory).walk():
+            for r, dirs, files in os.walk(target_directory):
+                root = Path(r)
                 dirs[:] = sorted(d for d in dirs if d != "__pycache__")
                 files.sort()
                 for file in files:
