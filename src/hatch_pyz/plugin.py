@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import os
-import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 import time
 import zipfile
-from functools import cached_property
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable, TypeAlias
 from zipfile import ZipFile, ZipInfo
 
 from hatchling.builders.plugin.interface import BuilderInterface, IncludedFile
@@ -18,14 +18,32 @@ from hatchling.builders.utils import (
     normalize_artifact_permissions,
     normalize_file_permissions,
     replace_file,
-    set_zip_info_mode,
+    set_zip_info_mode, normalize_archive_path,
 )
 
 from hatch_pyz.config import PyzConfig
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
+
     from hatchling.builders.config import BuilderConfig
+
+TIME_TUPLE: TypeAlias = tuple[int, int, int, int, int, int]
+
+
+def pip_install(dependencies: Sequence[str], target_directory: str) -> None:
+    pip_command = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--no-input",
+        "--disable-pip-version-check",
+        "--no-color",
+        "--target",
+        target_directory,
+    ]
+    subprocess.check_call(pip_command + list(dependencies))
 
 
 class ZipappArchive:
@@ -36,6 +54,7 @@ class ZipappArchive:
 
     def __init__(self, *, reproducible: bool, compressed: bool, interpreter: str):
         self.reproducible = reproducible
+        self.compression = zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED
 
         raw_fd, self.path = tempfile.mkstemp(suffix=".pyz")
         self.fd = os.fdopen(raw_fd, "w+b")
@@ -43,29 +62,44 @@ class ZipappArchive:
         shebang = b"#!" + interpreter.encode(self.shebang_encoding) + b"\n"
         self.fd.write(shebang)
 
-        compression = zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED
-        self.zf = ZipFile(self.fd, "w", compression=compression)
+        self.zf = ZipFile(self.fd, "w", compression=self.compression)
+
+    @staticmethod
+    def get_reproducible_time_tuple() -> TIME_TUPLE:
+        from datetime import datetime, timezone
+
+        d = datetime.fromtimestamp(get_reproducible_timestamp(), timezone.utc)
+        return d.year, d.month, d.day, d.hour, d.minute, d.second
 
     def add_file(self, included_file: IncludedFile) -> None:
-        zinfo = ZipInfo.from_file(included_file.path, included_file.distribution_path)
-        if zinfo.is_dir():
-            msg = "ZipArchive.add_file does not support adding directories"
-            raise ValueError(msg)
+        relative_path = normalize_archive_path(included_file.distribution_path)
+        file_stat = os.stat(included_file.path)
 
         if self.reproducible:
-            zinfo.date_time = self._reproducible_date_time
-            # normalize mode (https://github.com/takluyver/flit/pull/66)
-            st_mode = (zinfo.external_attr >> 16) & 0xFFFF
-            set_zip_info_mode(zinfo, normalize_file_permissions(st_mode) & 0xFFFF)
+            zip_info = zipfile.ZipInfo(relative_path, self.get_reproducible_time_tuple())
 
-        with open(included_file.path, "rb") as src, self.zf.open(zinfo, "w") as dest:
-            # https://github.com/python/mypy/issues/15031
-            shutil.copyfileobj(src, dest, 8 * 1024)  # type: ignore[misc]
+            # https://github.com/takluyver/flit/pull/66
+            new_mode = normalize_file_permissions(file_stat.st_mode)
+            set_zip_info_mode(zip_info, new_mode)
+            if stat.S_ISDIR(file_stat.st_mode):
+                zip_info.external_attr |= 0x10
+        else:
+            zip_info = zipfile.ZipInfo.from_file(included_file.path, relative_path)
+
+        zip_info.compress_type = self.compression
+
+        with open(included_file.path, 'rb') as in_file, self.zf.open(zip_info, 'w') as out_file:
+            while True:
+                chunk = in_file.read(16384)
+                if not chunk:
+                    break
+                out_file.write(chunk)
 
     def write_file(self, path: str, data: bytes | str) -> None:
         arcname = path
-        date_time = self._reproducible_date_time if self.reproducible else time.localtime(time.time())[:6]
-        self.zf.writestr(ZipInfo(os.fspath(arcname), date_time=date_time), data)
+        date_time = self.get_reproducible_time_tuple() if self.reproducible else time.localtime(time.time())[:6]
+        zinfo = ZipInfo(os.fspath(arcname), date_time=date_time)
+        self.zf.writestr(zinfo, data, compress_type=self.compression)
 
     def write_dunder_main(self, module: str, function: str) -> None:
         _dunder_main = "\n".join(
@@ -76,34 +110,6 @@ class ZipappArchive:
             )
         )
         self.write_file("__main__.py", _dunder_main)
-
-    def add_dependencies(self, dependencies: Sequence[str]) -> None:
-        if not dependencies:
-            return
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pip_command = [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--no-input",
-                "--disable-pip-version-check",
-                "--no-color",
-                "--target",
-                tmpdir,
-            ]
-            subprocess.check_call(pip_command + list(dependencies))
-
-            for root, dirs, files in Path(tmpdir).walk():
-                dirs[:] = sorted(d for d in dirs if d != "__pycache__")
-                files.sort()
-                for file in files:
-                    included_file = IncludedFile(str(root / file), "", str(root.relative_to(tmpdir) / file))
-                    self.add_file(included_file)
-
-    @cached_property
-    def _reproducible_date_time(self):
-        return time.gmtime(get_reproducible_timestamp())[0:6]
 
     def close(self):
         self.zf.close()
@@ -133,20 +139,40 @@ class PythonZipappBuilder(BuilderInterface):
             if filename.endswith(".pyz"):
                 os.remove(os.path.join(directory, filename))
 
+    @contextmanager
+    def bundle_dependencies(self, dependencies: Sequence[str]) -> Iterator[None]:
+        if not dependencies:
+            yield
+            return
+
+        with tempfile.TemporaryDirectory() as target_directory:
+            pip_install(dependencies, target_directory)
+
+            for root, dirs, files in Path(target_directory).walk():
+                dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+                files.sort()
+                for file in files:
+                    self.config.force_include[str(root / file)] = str(root.relative_to(target_directory) / file)
+
+            yield
+
     def build_standard(self, directory: str, **build_data: dict[str, Any]) -> str:  # noqa: ARG002
         project_name = self.normalize_file_name_component(self.metadata.core.raw_name)
         target = Path(directory, f"{project_name}-{self.metadata.version}.pyz")
 
         module, function = self.config.main.split(":")
+        bundled_dependencies = (
+            self.bundle_dependencies(self.metadata.core.dependencies)
+            if self.config.bundle_depenencies
+            else nullcontext()
+        )
 
         with ZipappArchive(
                 reproducible=self.config.reproducible,
                 compressed=self.config.compressed,
                 interpreter=self.config.interpreter,
-        ) as pyzapp:
+        ) as pyzapp, bundled_dependencies:
             pyzapp.write_dunder_main(module, function)
-            if self.config.bundle_depenencies:
-                pyzapp.add_dependencies(self.metadata.core.dependencies)
             for included_file in self.recurse_included_files():
                 pyzapp.add_file(included_file)
 
