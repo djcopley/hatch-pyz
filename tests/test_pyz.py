@@ -57,18 +57,25 @@ def test_build_standard(pyz_builder_factory):
         assert zf.read("__main__.py") == b"# -*- coding: utf-8 -*-\nimport my_app.app\nmy_app.app.main()"
 
 
-def test_build_standard_reproducible(pyz_builder_factory):
-    builder: PythonZipappBuilder = pyz_builder_factory()
-    build_dir = Path(builder.config.directory)
-    build_dir.mkdir()
+@pytest.mark.parametrize(
+    "reproducible", [False, True]
+)
+def test_build_standard_reproducible(reproducible, pyz_builder_factory):
+    builder1: PythonZipappBuilder = pyz_builder_factory(reproducible=reproducible)
+    build_dir1 = Path(builder1.config.directory)
+    build_dir1.mkdir()
 
-    artifact_path = builder.build_standard(str(builder.config.directory))
-    hash1 = md5_file_digest(artifact_path)
-    builder.clean(str(builder.config.directory), ["standard"])
-    artifact_path = builder.build_standard(str(builder.config.directory))
-    hash2 = md5_file_digest(artifact_path)
+    artifact1 = builder1.build_standard(str(build_dir1))
+    hash1 = md5_file_digest(artifact1)
 
-    assert hash1 == hash2
+    builder2: PythonZipappBuilder = pyz_builder_factory(reproducible=reproducible)
+    build_dir2 = Path(builder2.config.directory)
+    build_dir2.mkdir()
+
+    artifact2 = builder2.build_standard(str(build_dir2))
+    hash2 = md5_file_digest(artifact2)
+
+    assert (hash1 == hash2) is reproducible
 
 
 @pytest.mark.parametrize(
